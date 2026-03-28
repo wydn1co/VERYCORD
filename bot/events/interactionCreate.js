@@ -1,3 +1,4 @@
+var { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 var { v4: uuidv4 } = require('uuid');
 var db = require('../../db/database');
 var config = require('../../config');
@@ -43,8 +44,17 @@ module.exports = {
                     '&state=' + state +
                     '&prompt=consent';
 
+                var row = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setLabel('Verify Now')
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(authUrl)
+                        .setEmoji('🔒')
+                );
+
                 await interaction.reply({
-                    content: '🔒 Click the link below to verify:\n' + authUrl,
+                    content: 'Click the button below to verify:',
+                    components: [row],
                     ephemeral: true
                 });
             }
