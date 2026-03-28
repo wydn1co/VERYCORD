@@ -1,0 +1,16 @@
+{
+  "name": "verify-bot",
+  "version": "1.0.0",
+  "description": "Discord verification bot with OAuth2 and info capture",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "express": "^4.21.0",
+    "node-fetch": "^2.7.0",
+    "uuid": "^10.0.0"
+  }
+}

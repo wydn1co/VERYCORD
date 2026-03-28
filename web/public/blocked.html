@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Denied</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="blocked-icon">✕</div>
+            <h1>Verification Failed</h1>
+            <p class="subtitle" id="reason">You were unable to complete verification.</p>
+
+            <span class="badge badge-error" id="badge">Blocked</span>
+        </div>
+
+        <div class="footer">
+            <p>Contact a server admin if you believe this is an error</p>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var reason = params.get('reason');
+        var el = document.getElementById('reason');
+        var badge = document.getElementById('badge');
+
+        var messages = {
+            vpn: 'VPN or proxy usage was detected. Please disable your VPN and try again.',
+            blacklisted: 'Your account or IP has been blacklisted from this server.',
+            expired: 'Your verification session has expired. Please try again from Discord.',
+            invalid: 'Invalid verification request. Please start the process from Discord.',
+            error: 'An unexpected error occurred. Please try again later.'
+        };
+
+        var badges = {
+            vpn: '⚠ VPN Detected',
+            blacklisted: '⛔ Blacklisted',
+            expired: '⏰ Expired',
+            invalid: '❌ Invalid',
+            error: '❌ Error'
+        };
+
+        if (reason && messages[reason]) {
+            el.textContent = messages[reason];
+            badge.textContent = badges[reason] || 'Blocked';
+
+            if (reason === 'vpn') {
+                badge.className = 'badge badge-warn';
+            }
+        }
+    })();
+    </script>
+</body>
+</html>

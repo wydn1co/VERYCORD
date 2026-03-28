@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verified ✓</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="success-icon">✓</div>
+            <h1>Verification Complete</h1>
+            <p class="subtitle">You've been verified successfully. You now have full access to the server.</p>
+
+            <span class="badge badge-success">✓ Verified</span>
+
+            <div class="progress-bar">
+                <div class="fill"></div>
+            </div>
+            <p class="countdown" id="countdown">Redirecting in 5 seconds...</p>
+        </div>
+
+        <div class="footer">
+            <p>You can close this tab now</p>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var secs = 5;
+        var el = document.getElementById('countdown');
+        var timer = setInterval(function() {
+            secs--;
+            if (secs <= 0) {
+                clearInterval(timer);
+                el.textContent = 'You can close this tab.';
+            } else {
+                el.textContent = 'Redirecting in ' + secs + ' seconds...';
+            }
+        }, 1000);
+    })();
+    </script>
+</body>
+</html>
