@@ -24,11 +24,13 @@ module.exports = {
             .setThumbnail(member.guild.iconURL({ size: 128 }))
             .setFooter({ text: member.guild.name });
 
+        var verifyUrl = config.baseUrl + '/auth/discord?guild=' + member.guild.id;
+
         var row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('verify_btn')
                 .setLabel('Verify')
-                .setStyle(ButtonStyle.Success)
+                .setStyle(ButtonStyle.Link)
+                .setURL(verifyUrl)
                 .setEmoji('✅')
         );
 

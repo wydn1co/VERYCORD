@@ -43,11 +43,13 @@ module.exports = {
             .setThumbnail(interaction.guild.iconURL({ size: 256 }))
             .setFooter({ text: interaction.guild.name + ' • Verification', iconURL: interaction.guild.iconURL() });
 
+        var verifyUrl = config.baseUrl + '/auth/discord?guild=' + interaction.guildId;
+
         var row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('verify_btn')
                 .setLabel('Verify')
-                .setStyle(ButtonStyle.Success)
+                .setStyle(ButtonStyle.Link)
+                .setURL(verifyUrl)
                 .setEmoji('✅')
         );
 
