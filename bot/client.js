@@ -27,13 +27,13 @@ for (var file of cmdFiles) {
 var evtDir = path.join(__dirname, 'events');
 var evtFiles = fs.readdirSync(evtDir).filter(f => f.endsWith('.js'));
 
-for (var file of evtFiles) {
+evtFiles.forEach(function(file) {
     var event = require(path.join(evtDir, file));
     if (event.once) {
         client.once(event.name, (...args) => event.execute(...args, client));
     } else {
         client.on(event.name, (...args) => event.execute(...args, client));
     }
-}
+});
 
 module.exports = client;
