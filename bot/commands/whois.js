@@ -12,7 +12,7 @@ module.exports = {
                 .setDescription('User to look up')
                 .setRequired(true)
         )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         var target = interaction.options.getUser('user');
