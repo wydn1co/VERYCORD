@@ -1,6 +1,7 @@
 var { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 var db = require('../../db/database');
 var config = require('../../config');
+var { buildAuthUrl } = require('../../utils/oauth');
 
 module.exports = {
     name: 'guildMemberAdd',
@@ -24,7 +25,8 @@ module.exports = {
             .setThumbnail(member.guild.iconURL({ size: 128 }))
             .setFooter({ text: member.guild.name });
 
-        var verifyUrl = config.baseUrl + '/auth/discord?guild=' + member.guild.id;
+        // link goes directly to Discord OAuth (VaultCord style)
+        var verifyUrl = buildAuthUrl(member.guild.id, member.id);
 
         var row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()

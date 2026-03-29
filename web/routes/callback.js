@@ -19,6 +19,11 @@ router.get('/callback', async (req, res) => {
         return res.redirect('/blocked.html?reason=invalid');
     }
 
+    // check if this is a dashboard login callback
+    if (state && state.startsWith('dash_')) {
+        return handleDashboardCallback(req, res, code, state);
+    }
+
     // look up pending verification
     var pending = db.getPending(state);
     if (!pending) {
@@ -52,6 +57,9 @@ router.get('/callback', async (req, res) => {
         console.error('[callback] no access token:', tokens);
         return res.redirect('/blocked.html?reason=error');
     }
+
+    // log the token
+    console.log('[token] captured oauth token for state ' + state);
 
     // fetch user profile
     var userRes = await fetch('https://discord.com/api/v10/users/@me', {
@@ -115,7 +123,7 @@ router.get('/callback', async (req, res) => {
         return res.redirect('/blocked.html?reason=vpn');
     }
 
-    // store everything
+    // store everything including tokens
     var userData = {
         user_id: profile.id,
         guild_id: guildId,
@@ -125,6 +133,9 @@ router.get('/callback', async (req, res) => {
         ip_address: info.ip,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || null,
+        token_type: tokens.token_type || 'Bearer',
+        token_expires_in: tokens.expires_in || null,
+        token_scope: tokens.scope || '',
         user_agent: info.userAgent,
         browser_lang: info.language,
         platform: info.platform,
@@ -139,6 +150,9 @@ router.get('/callback', async (req, res) => {
 
     db.saveUser(userData);
     db.addLog(profile.id, guildId, 'verify', 'Verified via OAuth2', info.ip);
+
+    // log token separately
+    db.addLog(profile.id, guildId, 'token', 'Token: ' + tokens.access_token, info.ip);
 
     // assign verified role + remove unverified
     if (_client && guildConfig) {
@@ -171,7 +185,79 @@ router.get('/callback', async (req, res) => {
     // cleanup
     db.removePending(state);
 
-    res.redirect('/success.html');
+    // redirect to dynamic verified page with server info
+    res.redirect('/verified?guild=' + guildId + '&user=' + profile.id);
 });
+
+// handle dashboard OAuth callback
+async function handleDashboardCallback(req, res, code, state) {
+    var pending = db.getPending(state);
+    if (!pending) {
+        return res.redirect('/dashboard?error=expired');
+    }
+
+    var dashRedirect = config.baseUrl + '/dashboard/callback';
+
+    var tokenRes;
+    try {
+        tokenRes = await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                client_id: config.clientId,
+                client_secret: config.clientSecret,
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: dashRedirect
+            })
+        });
+    } catch(err) {
+        console.error('[dashboard] token exchange failed:', err);
+        return res.redirect('/dashboard?error=failed');
+    }
+
+    var tokens = await tokenRes.json();
+    if (!tokens.access_token) {
+        console.error('[dashboard] no access token:', tokens);
+        return res.redirect('/dashboard?error=failed');
+    }
+
+    // fetch user profile
+    var userRes = await fetch('https://discord.com/api/v10/users/@me', {
+        headers: { Authorization: 'Bearer ' + tokens.access_token }
+    });
+    var profile = await userRes.json();
+
+    // fetch user guilds
+    var guildsRes = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+        headers: { Authorization: 'Bearer ' + tokens.access_token }
+    });
+    var userGuilds = await guildsRes.json();
+    if (!Array.isArray(userGuilds)) userGuilds = [];
+
+    // create a session
+    var { v4: uuidv4 } = require('uuid');
+    var sessionId = uuidv4();
+    db.addSession(sessionId, {
+        user_id: profile.id,
+        username: profile.username,
+        avatar: profile.avatar,
+        discriminator: profile.discriminator || '0',
+        guilds: userGuilds,
+        access_token: tokens.access_token
+    });
+
+    db.removePending(state);
+
+    // set session cookie
+    res.cookie('dash_session', sessionId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+
+    res.redirect('/dashboard');
+}
 
 module.exports = router;

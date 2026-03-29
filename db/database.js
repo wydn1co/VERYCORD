@@ -12,14 +12,18 @@ var defaultStore = {
     blacklist: [],
     guild_config: {},
     verification_logs: [],
-    pending_verifications: {}
+    pending_verifications: {},
+    sessions: {}
 };
 
 function loadStore() {
     try {
         if (fs.existsSync(dbFile)) {
             var raw = fs.readFileSync(dbFile, 'utf-8');
-            return JSON.parse(raw);
+            var data = JSON.parse(raw);
+            // make sure sessions key exists for upgrades
+            if (!data.sessions) data.sessions = {};
+            return data;
         }
     } catch(e) {
         console.error('[db] corrupt store, resetting:', e.message);
@@ -189,8 +193,48 @@ function cleanPending() {
     queueSave();
 }
 
+// ---- sessions ----
+
+function addSession(sessionId, data) {
+    store.sessions[sessionId] = {
+        data: data,
+        created_at: new Date().toISOString()
+    };
+    queueSave();
+}
+
+function getSession(sessionId) {
+    var sess = store.sessions[sessionId];
+    if (!sess) return null;
+    // expire after 24 hours
+    if (Date.now() - new Date(sess.created_at).getTime() > 24 * 60 * 60 * 1000) {
+        delete store.sessions[sessionId];
+        queueSave();
+        return null;
+    }
+    return sess.data;
+}
+
+function removeSession(sessionId) {
+    delete store.sessions[sessionId];
+    queueSave();
+}
+
+function cleanSessions() {
+    var cutoff = Date.now() - (24 * 60 * 60 * 1000);
+    var keys = Object.keys(store.sessions);
+    for (var i = 0; i < keys.length; i++) {
+        var sess = store.sessions[keys[i]];
+        if (new Date(sess.created_at).getTime() < cutoff) {
+            delete store.sessions[keys[i]];
+        }
+    }
+    queueSave();
+}
+
 // run cleanup every 5 min
 setInterval(cleanPending, 300000);
+setInterval(cleanSessions, 300000);
 
 module.exports = {
     saveUser,
@@ -213,5 +257,9 @@ module.exports = {
     addPending,
     getPending,
     removePending,
-    cleanPending
+    cleanPending,
+    addSession,
+    getSession,
+    removeSession,
+    cleanSessions
 };

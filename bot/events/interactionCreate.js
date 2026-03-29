@@ -1,7 +1,5 @@
 var { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-var { v4: uuidv4 } = require('uuid');
-var db = require('../../db/database');
-var config = require('../../config');
+var { buildAuthUrl } = require('../../utils/oauth');
 
 module.exports = {
     name: 'interactionCreate',
@@ -31,18 +29,8 @@ module.exports = {
                 var guildId = interaction.guildId;
                 var userId = interaction.user.id;
 
-                // generate unique state for OAuth
-                var state = uuidv4();
-                db.addPending(state, userId, guildId);
-
-                var scopes = 'identify email guilds guilds.join';
-                var authUrl = 'https://discord.com/api/oauth2/authorize' +
-                    '?client_id=' + config.clientId +
-                    '&redirect_uri=' + encodeURIComponent(config.redirectUri) +
-                    '&response_type=code' +
-                    '&scope=' + encodeURIComponent(scopes) +
-                    '&state=' + state +
-                    '&prompt=consent';
+                // build Discord OAuth URL directly (VaultCord style)
+                var authUrl = buildAuthUrl(guildId, userId);
 
                 var row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()

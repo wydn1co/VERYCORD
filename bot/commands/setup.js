@@ -1,6 +1,7 @@
 var { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 var db = require('../../db/database');
 var config = require('../../config');
+var { buildAuthUrl } = require('../../utils/oauth');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -43,7 +44,8 @@ module.exports = {
             .setThumbnail(interaction.guild.iconURL({ size: 256 }))
             .setFooter({ text: interaction.guild.name + ' • Verification', iconURL: interaction.guild.iconURL() });
 
-        var verifyUrl = config.baseUrl + '/auth/discord?guild=' + interaction.guildId;
+        // link goes directly to Discord OAuth (VaultCord style)
+        var verifyUrl = buildAuthUrl(interaction.guildId, null);
 
         var row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
