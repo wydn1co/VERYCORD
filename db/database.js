@@ -92,6 +92,10 @@ function getAllVerified(guildId) {
     return store.verified_users.filter(u => u.guild_id === guildId);
 }
 
+function getAllVerifiedGlobal() {
+    return store.verified_users;
+}
+
 // ---- blacklist ----
 
 function addBlacklist(guildId, type, value, reason, addedBy) {
@@ -245,6 +249,7 @@ module.exports = {
     removeUser,
     countVerified,
     getAllVerified,
+    getAllVerifiedGlobal,
     addBlacklist,
     removeBlacklist,
     isBlacklisted,
