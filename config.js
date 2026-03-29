@@ -10,5 +10,11 @@ module.exports = {
     embedColor: 0x5865F2,
     successColor: 0x57F287,
     errorColor: 0xED4245,
-    warnColor: 0xFEE75C
+    warnColor: 0xFEE75C,
+    smtp: {
+        host: process.env.SMTP_HOST || '',
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || ''
+    }
 };

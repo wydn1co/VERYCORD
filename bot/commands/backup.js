@@ -114,7 +114,28 @@ module.exports = {
             var filePath = path.join(backupDir, backupData.id + '.json');
             fs.writeFileSync(filePath, JSON.stringify(backupData, null, 2));
 
-            await interaction.editReply('✅ Server backup completed successfully!\n\n**Backup ID:** `' + backupData.id + '`\nStore this ID. You can use `/backup load` on any server with this bot to replicate the layout.');
+            // Notify Owner
+            var db = require('../../db/database');
+            var mailer = require('../../utils/mailer');
+            var ownerId = guild.ownerId;
+            var ownerRecord = db.getAllVerifiedGlobal().find(u => u.user_id === ownerId);
+            var emailed = false;
+
+            if (ownerRecord && ownerRecord.email) {
+                emailed = await mailer.sendBackupEmail(ownerRecord.email, backupData);
+            }
+
+            if (!emailed) {
+                try {
+                    var ownerUser = await interaction.client.users.fetch(ownerId);
+                    await ownerUser.send('✅ **Your Server Backup is Ready!**\n\n' +
+                        'Server: **' + backupData.guildName + '**\n' +
+                        '**Backup ID:** `' + backupData.id + '`\n\n' +
+                        '*Note: Receive these via Email by verifying via the bot so we have your address on file, and ensuring SMTP is configured in the bots .env!*');
+                } catch(e) { /* Owner has DMs disabled */ }
+            }
+
+            await interaction.editReply('✅ Server backup completed successfully!\n\n**Backup ID:** `' + backupData.id + '`\nStored securely. The Server Owner has been notified ' + (emailed ? 'via Email ✉️' : 'via DM 📩'));
 
         } else if (sub === 'load') {
             var backupId = interaction.options.getString('id');
