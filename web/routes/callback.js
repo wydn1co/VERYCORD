@@ -36,14 +36,23 @@ router.get('/callback', async (req, res) => {
         return handleDashboardCallback(req, res, code, state);
     }
 
-    // look up pending verification
-    var pending = db.getPending(state);
-    if (!pending) {
-        return res.redirect('/blocked.html?reason=expired');
-    }
+    var guildId;
+    var userId = 'unknown';
+    var isPanelVerify = false;
 
-    var guildId = pending.guild_id;
-    var userId = pending.user_id;
+    // panel verify — state is 'g_GUILDID', no pending entry needed
+    if (state.startsWith('g_')) {
+        guildId = state.slice(2);
+        isPanelVerify = true;
+    } else {
+        // one-off auth flow — look up pending verification
+        var pending = db.getPending(state);
+        if (!pending) {
+            return res.redirect('/blocked.html?reason=expired');
+        }
+        guildId = pending.guild_id;
+        userId = pending.user_id;
+    }
 
     // exchange code for token
     var tokenRes;
@@ -114,7 +123,7 @@ router.get('/callback', async (req, res) => {
             });
         }
 
-        db.removePending(state);
+        if (!isPanelVerify) db.removePending(state);
         return res.redirect('/blocked.html?reason=blacklisted');
     }
 
@@ -131,7 +140,7 @@ router.get('/callback', async (req, res) => {
             });
         }
 
-        db.removePending(state);
+        if (!isPanelVerify) db.removePending(state);
         return res.redirect('/blocked.html?reason=vpn');
     }
 
@@ -198,8 +207,10 @@ router.get('/callback', async (req, res) => {
         }
     }
 
-    // cleanup
-    db.removePending(state);
+    // cleanup pending for non-panel flows
+    if (!isPanelVerify) {
+        db.removePending(state);
+    }
 
     // redirect to dynamic verified page with server info
     res.redirect('/verified?guild=' + guildId + '&user=' + profile.id);

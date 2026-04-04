@@ -1,6 +1,7 @@
 var { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = require('discord.js');
 var db = require('../../db/database');
 var config = require('../../config');
+var { buildPanelAuthUrl } = require('../../utils/oauth');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -391,8 +392,8 @@ async function finishSetup(interaction, existing) {
             .setThumbnail(interaction.guild.iconURL({ size: 256 }))
             .setFooter({ text: (existing.custom_brand || interaction.guild.name) + ' • Verification', iconURL: interaction.guild.iconURL() });
 
-        // link button goes to our server which generates a fresh OAuth URL per click
-        var verifyUrl = config.baseUrl + '/auth/verify?guild=' + interaction.guildId;
+        // link button goes straight to Discord OAuth — guild ID is in the state
+        var verifyUrl = buildPanelAuthUrl(interaction.guildId);
 
         var row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()

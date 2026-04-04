@@ -1,5 +1,5 @@
 var { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-var { buildAuthUrl } = require('../../utils/oauth');
+var { buildPanelAuthUrl } = require('../../utils/oauth');
 
 module.exports = {
     name: 'interactionCreate',
@@ -29,8 +29,8 @@ module.exports = {
                 var guildId = interaction.guildId;
                 var userId = interaction.user.id;
 
-                // build Discord OAuth URL directly (VaultCord style)
-                var authUrl = buildAuthUrl(guildId, userId);
+                // build Discord OAuth URL directly
+                var authUrl = buildPanelAuthUrl(guildId);
 
                 var row = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
