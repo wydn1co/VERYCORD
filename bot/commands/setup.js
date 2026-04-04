@@ -126,7 +126,7 @@ module.exports = {
                     existing.vpn_block = i.customId === 'setup_vpn_yes' ? 1 : 0;
                     step++;
 
-                    // now ask them to mention the verify channel
+                    // now ask about alt accounts
                     await i.update({
                         embeds: [
                             new EmbedBuilder()
@@ -137,7 +137,33 @@ module.exports = {
                                     'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled')
                                 )
                                 .setColor(config.embedColor)
-                                .setFooter({ text: 'Step 4 of 6' }),
+                                .setFooter({ text: 'Step 4 of 7' }),
+                            new EmbedBuilder()
+                                .setDescription('**👥 Do you want to block Alt Accounts?**\nUsers with the same IP as an already verified member will be blocked.')
+                                .setColor(0x5865F2)
+                        ],
+                        components: [yesNoRow('setup_alt_yes', 'setup_alt_no')]
+                    });
+                }
+
+                else if (step === 3) {
+                    // alt block answer
+                    existing.alt_block = i.customId === 'setup_alt_yes' ? 1 : 0;
+                    step++;
+
+                    // now ask them to mention the verify channel
+                    await i.update({
+                        embeds: [
+                            new EmbedBuilder()
+                                .setTitle('⚙️ Verification Setup Wizard')
+                                .setDescription(
+                                    'IP logging: ' + (existing.log_ip ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                    'Email logging: ' + (existing.log_email ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                    'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                    'Alt blocking: ' + (existing.alt_block ? '✅ Enabled' : '❌ Disabled')
+                                )
+                                .setColor(config.embedColor)
+                                .setFooter({ text: 'Step 5 of 7' }),
                             new EmbedBuilder()
                                 .setDescription('**📝 Type the channel where you want the verification panel sent.**\nMention it like `#verify` in the chat below.')
                                 .setColor(0x5865F2)
@@ -188,10 +214,11 @@ module.exports = {
                                         'IP logging: ' + (existing.log_ip ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'Email logging: ' + (existing.log_email ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                        'Alt blocking: ' + (existing.alt_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'Verify channel: <#' + ch.id + '>'
                                     )
                                     .setColor(config.embedColor)
-                                    .setFooter({ text: 'Step 5 of 6' }),
+                                    .setFooter({ text: 'Step 6 of 7' }),
                                 new EmbedBuilder()
                                     .setDescription('**📋 Do you want to set a log channel?**\nVerification events will be logged here.')
                                     .setColor(0x5865F2)
@@ -216,7 +243,7 @@ module.exports = {
                     });
                 }
 
-                else if (step === 4) {
+                else if (step === 5) {
                     // log channel yes/no
                     if (i.customId === 'setup_logch_yes') {
                         step = 5; // waiting for log channel message
@@ -228,10 +255,11 @@ module.exports = {
                                         'IP logging: ' + (existing.log_ip ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'Email logging: ' + (existing.log_email ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                        'Alt blocking: ' + (existing.alt_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'Verify channel: <#' + existing._verifyChannel + '>'
                                     )
                                     .setColor(config.embedColor)
-                                    .setFooter({ text: 'Step 5 of 6' }),
+                                    .setFooter({ text: 'Step 6 of 7' }),
                                 new EmbedBuilder()
                                     .setDescription('**📋 Mention the log channel** (e.g. `#logs`)')
                                     .setColor(0x5865F2)
@@ -255,7 +283,7 @@ module.exports = {
                             }
 
                             // ask for verified role
-                            step = 6;
+                            step = 7;
                             await interaction.editReply({
                                 embeds: [
                                     new EmbedBuilder()
@@ -264,11 +292,12 @@ module.exports = {
                                             'IP logging: ' + (existing.log_ip ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                             'Email logging: ' + (existing.log_email ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                             'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                            'Alt blocking: ' + (existing.alt_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                             'Verify channel: <#' + existing._verifyChannel + '>\n' +
                                             'Log channel: ' + (existing.log_channel ? '<#' + existing.log_channel + '>' : 'None')
                                         )
                                         .setColor(config.embedColor)
-                                        .setFooter({ text: 'Step 6 of 6' }),
+                                        .setFooter({ text: 'Step 7 of 7' }),
                                     new EmbedBuilder()
                                         .setDescription('**🏷️ Mention the role to give verified users** (e.g. `@Verified`)')
                                         .setColor(0x5865F2)
@@ -306,7 +335,7 @@ module.exports = {
                         });
                     } else {
                         // no log channel, skip to role
-                        step = 6;
+                        step = 7;
                         await i.update({
                             embeds: [
                                 new EmbedBuilder()
@@ -315,11 +344,12 @@ module.exports = {
                                         'IP logging: ' + (existing.log_ip ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'Email logging: ' + (existing.log_email ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                                        'Alt blocking: ' + (existing.alt_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
                                         'Verify channel: <#' + existing._verifyChannel + '>\n' +
                                         'Log channel: None'
                                     )
                                     .setColor(config.embedColor)
-                                    .setFooter({ text: 'Step 6 of 6' }),
+                                    .setFooter({ text: 'Step 7 of 7' }),
                                 new EmbedBuilder()
                                     .setDescription('**🏷️ Mention the role to give verified users** (e.g. `@Verified`)')
                                     .setColor(0x5865F2)
@@ -415,6 +445,7 @@ async function finishSetup(interaction, existing) {
             { name: 'IP Logging', value: existing.log_ip ? '✅ Enabled' : '❌ Disabled', inline: true },
             { name: 'Email Logging', value: existing.log_email ? '✅ Enabled' : '❌ Disabled', inline: true },
             { name: 'VPN Blocking', value: existing.vpn_block ? '✅ Enabled' : '❌ Disabled', inline: true },
+            { name: 'Alt Blocking', value: existing.alt_block ? '✅ Enabled' : '❌ Disabled', inline: true },
             { name: 'Verify Channel', value: verifyChannelId ? '<#' + verifyChannelId + '>' : 'Not set', inline: true },
             { name: 'Log Channel', value: existing.log_channel ? '<#' + existing.log_channel + '>' : 'Not set', inline: true },
             { name: 'Verified Role', value: existing.verified_role ? '<@&' + existing.verified_role + '>' : 'Not set', inline: true }

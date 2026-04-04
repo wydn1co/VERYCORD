@@ -143,7 +143,27 @@ router.get('/callback', async (req, res) => {
         if (!isPanelVerify) db.removePending(state);
         return res.redirect('/blocked.html?reason=vpn');
     }
+    // block alt accounts if enabled (same IP in same server)
+    if (guildConfig && guildConfig.alt_block && info.ip) {
+        var existingAlts = db.getUsersByIp(info.ip).filter(u => u.guild_id === guildId && u.user_id !== profile.id);
+        if (existingAlts.length > 0) {
+            var originalUser = existingAlts[0];
+            
+            db.addLog(profile.id, guildId, 'blocked', 'Alt account detected (matches ' + originalUser.username + ')', info.ip);
 
+            if (_client && guildConfig.log_channel) {
+                await sendBlockLog(_client, guildConfig.log_channel, 'Alt account blocked (matches ' + originalUser.username + ' | ' + originalUser.user_id + ')', {
+                    user_id: profile.id,
+                    username: profile.username,
+                    avatar: profile.avatar,
+                    ip_address: info.ip
+                });
+            }
+
+            if (!isPanelVerify) db.removePending(state);
+            return res.redirect('/blocked.html?reason=alt&name=' + encodeURIComponent(originalUser.username));
+        }
+    }
     // store everything including tokens
     // respect guild config for what to log
     var logIp = !guildConfig || guildConfig.log_ip === undefined || guildConfig.log_ip;

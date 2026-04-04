@@ -44,6 +44,7 @@
             blacklisted: 'Your account or IP has been blacklisted from this server.',
             expired: 'Your verification session has expired. Please try again from Discord.',
             invalid: 'Invalid verification request. Please start the process from Discord.',
+            alt: 'You already have an account in this server ({name}). Please dm the owner for a manual verify.',
             error: 'An unexpected error occurred. Please try again later.'
         };
 
@@ -52,11 +53,17 @@
             blacklisted: '⛔ Blacklisted',
             expired: '⏰ Expired',
             invalid: '❌ Invalid',
+            alt: '🛑 Alt Account Detected',
             error: '❌ Error'
         };
 
         if (reason && messages[reason]) {
-            el.textContent = messages[reason];
+            var msg = messages[reason];
+            if (reason === 'alt') {
+                var name = params.get('name') || 'Unknown';
+                msg = msg.replace('{name}', name);
+            }
+            el.textContent = msg;
             badge.textContent = badges[reason] || 'Blocked';
 
             if (reason === 'vpn') {

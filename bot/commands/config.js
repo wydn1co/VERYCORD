@@ -70,6 +70,15 @@ module.exports = {
                 )
         )
         .addSubcommand(sub =>
+            sub.setName('altblock')
+                .setDescription('Toggle automatic Alt Account blocking')
+                .addBooleanOption(opt =>
+                    opt.setName('enabled')
+                        .setDescription('Block verifying duplicate accounts originating from the same IP address')
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
             sub.setName('logemail')
                 .setDescription('Toggle email logging')
                 .addBooleanOption(opt =>
@@ -163,6 +172,13 @@ module.exports = {
             db.setConfig(existing);
             await interaction.reply({ content: '✅ Email logging ' + (enabled ? 'enabled' : 'disabled'), ephemeral: true });
         }
+        
+        else if (sub === 'altblock') {
+            var enabled = interaction.options.getBoolean('enabled');
+            existing.alt_block = enabled ? 1 : 0;
+            db.setConfig(existing);
+            await interaction.reply({ content: '✅ Alt account blocking ' + (enabled ? 'enabled' : 'disabled'), ephemeral: true });
+        }
 
         else if (sub === 'view') {
             var cfg = db.getConfig(guildId);
@@ -178,6 +194,7 @@ module.exports = {
                     { name: 'Verified Role', value: cfg.verified_role ? '<@&' + cfg.verified_role + '>' : 'Not set', inline: true },
                     { name: 'Unverified Role', value: cfg.unverified_role ? '<@&' + cfg.unverified_role + '>' : 'Not set', inline: true },
                     { name: 'VPN Block', value: cfg.vpn_block ? '✅ Enabled' : '❌ Disabled', inline: true },
+                    { name: 'Alt Block', value: cfg.alt_block ? '✅ Enabled' : '❌ Disabled', inline: true },
                     { name: 'Log IP', value: (cfg.log_ip === undefined || cfg.log_ip) ? '✅ Enabled' : '❌ Disabled', inline: true },
                     { name: 'Log Email', value: (cfg.log_email === undefined || cfg.log_email) ? '✅ Enabled' : '❌ Disabled', inline: true },
                     { name: 'Brand Name', value: cfg.custom_brand || interaction.guild.name, inline: true },
