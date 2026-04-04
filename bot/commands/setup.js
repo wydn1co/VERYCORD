@@ -385,11 +385,11 @@ async function finishSetup(interaction, existing) {
     var channel = interaction.guild.channels.cache.get(verifyChannelId);
     if (channel) {
         var panelEmbed = new EmbedBuilder()
-            .setTitle('Verification')
-            .setDescription('Click the button below to verify and gain access to the server.')
+            .setTitle(existing.custom_brand || 'Verification')
+            .setDescription(existing.custom_bio || 'Click the button below to verify and gain access to the server.')
             .setColor(parseInt((existing.custom_color || '#5865F2').replace('#', ''), 16) || config.embedColor)
             .setThumbnail(interaction.guild.iconURL({ size: 256 }))
-            .setFooter({ text: interaction.guild.name + ' • Verification', iconURL: interaction.guild.iconURL() });
+            .setFooter({ text: (existing.custom_brand || interaction.guild.name) + ' • Verification', iconURL: interaction.guild.iconURL() });
 
         // link button goes to our server which generates a fresh OAuth URL per click
         var verifyUrl = config.baseUrl + '/auth/verify?guild=' + interaction.guildId;
