@@ -11,6 +11,18 @@ var router = Router();
 var _client = null;
 router.setClient = function(c) { _client = c; };
 
+// each click on the verify panel hits this, gets a fresh OAuth URL
+router.get('/verify', (req, res) => {
+    var guildId = req.query.guild;
+    if (!guildId) {
+        return res.redirect('/?error=no_guild');
+    }
+
+    var { buildAuthUrl } = require('../../utils/oauth');
+    var authUrl = buildAuthUrl(guildId, null);
+    res.redirect(authUrl);
+});
+
 router.get('/callback', async (req, res) => {
     var code = req.query.code;
     var state = req.query.state;

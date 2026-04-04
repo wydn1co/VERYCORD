@@ -391,12 +391,14 @@ async function finishSetup(interaction, existing) {
             .setThumbnail(interaction.guild.iconURL({ size: 256 }))
             .setFooter({ text: interaction.guild.name + ' • Verification', iconURL: interaction.guild.iconURL() });
 
-        // use a non-link button so each click generates a fresh OAuth URL
+        // link button goes to our server which generates a fresh OAuth URL per click
+        var verifyUrl = config.baseUrl + '/auth/verify?guild=' + interaction.guildId;
+
         var row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId('verify_btn')
                 .setLabel('Verify')
-                .setStyle(ButtonStyle.Success)
+                .setStyle(ButtonStyle.Link)
+                .setURL(verifyUrl)
                 .setEmoji('✅')
         );
 
