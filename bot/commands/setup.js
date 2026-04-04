@@ -43,6 +43,29 @@ module.exports = {
             );
         }
 
+        function askForPanelText(interaction, existing) {
+            step = 7;
+            var summaryEmbed = new EmbedBuilder()
+                .setTitle('⚙️ Verification Setup Wizard')
+                .setDescription(
+                    'IP logging: ' + (existing.log_ip ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                    'Email logging: ' + (existing.log_email ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                    'VPN blocking: ' + (existing.vpn_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                    'Alt blocking: ' + (existing.alt_block ? '✅ Enabled' : '❌ Disabled') + '\n' +
+                    'Verify channel: <#' + existing._verifyChannel + '>\n' +
+                    'Log channel: ' + (existing.log_channel ? '<#' + existing.log_channel + '>' : 'None') + '\n' +
+                    'Verified role: ' + (existing.verified_role ? '<@&' + existing.verified_role + '>' : 'Not set')
+                )
+                .setColor(config.embedColor)
+                .setFooter({ text: 'Step 8 of 8' });
+
+            var questionEmbed = new EmbedBuilder()
+                .setDescription('**💬 Do you want to customize the verification panel description message?**\n(The text users see above the Verify button)')
+                .setColor(0x5865F2);
+
+            interaction.editReply({ embeds: [summaryEmbed, questionEmbed], components: [yesNoRow('setup_panel_yes', 'setup_panel_no')] }).catch(()=>{});
+        }
+
         // start with an intro embed
         var introEmbed = new EmbedBuilder()
             .setTitle('⚙️ Verification Setup Wizard')
@@ -320,16 +343,12 @@ module.exports = {
                                     existing.verified_role = role.id;
                                 }
 
-                                // finalize
-                                await finishSetup(interaction, existing);
-                                collector.stop('done');
+                                askForPanelText(interaction, existing);
                             });
 
                             roleMsgCollector.on('end', (collected, reason) => {
                                 if (reason === 'time' && collected.size === 0) {
-                                    // still finish with whatever we have
-                                    finishSetup(interaction, existing);
-                                    collector.stop('done');
+                                    askForPanelText(interaction, existing);
                                 }
                             });
                         });
@@ -372,11 +391,45 @@ module.exports = {
                                 existing.verified_role = role.id;
                             }
 
+                            askForPanelText(interaction, existing);
+                        });
+
+                        roleMsgCollector2.on('end', (collected, reason) => {
+                            if (reason === 'time' && collected.size === 0) {
+                                askForPanelText(interaction, existing);
+                            }
+                        });
+                    }
+                }
+
+                else if (step === 7) {
+                    if (i.customId === 'setup_panel_no') {
+                        await finishSetup(interaction, existing);
+                        collector.stop('done');
+                    } else {
+                        await i.update({
+                            embeds: [
+                                new EmbedBuilder()
+                                    .setDescription('**📝 Type your custom Verification Panel description:**\n(You have 2 minutes to reply)')
+                                    .setColor(0x5865F2)
+                            ],
+                            components: []
+                        });
+
+                        var panelMsgCol = interaction.channel.createMessageCollector({
+                            filter: m => m.author.id === interaction.user.id,
+                            max: 1,
+                            time: 120000
+                        });
+
+                        panelMsgCol.on('collect', async m => {
+                            existing.custom_bio = m.content;
+                            await m.delete().catch(()=>{});
                             await finishSetup(interaction, existing);
                             collector.stop('done');
                         });
 
-                        roleMsgCollector2.on('end', (collected, reason) => {
+                        panelMsgCol.on('end', (collected, reason) => {
                             if (reason === 'time' && collected.size === 0) {
                                 finishSetup(interaction, existing);
                                 collector.stop('done');
