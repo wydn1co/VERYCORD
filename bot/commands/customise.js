@@ -123,16 +123,35 @@ module.exports = {
         }
 
         else if (sub === 'bio') {
-            var text = interaction.options.getString('text') || null;
+            await interaction.deferReply({ ephemeral: true });
+            
+            var text = interaction.options.getString('text') || '';
 
-            var existing = db.getConfig(guildId) || { guild_id: guildId };
-            existing.custom_bio = text;
-            db.setConfig(existing);
+            try {
+                // Bots don't have per-server bios. Bots like Bleed that offer per-server 
+                // setups use individual bot tokens per server string (custom bots).
+                // since this is a single bot instance, we change the global bio via API.
+                var resApi = await fetch('https://discord.com/api/v10/applications/@me', {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': 'Bot ' + config.token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ description: text })
+                });
 
-            if (text) {
-                await interaction.reply({ content: '✅ Bot description for this server set to:\n> ' + text, ephemeral: true });
-            } else {
-                await interaction.reply({ content: '✅ Bot description cleared for this server', ephemeral: true });
+                if (!resApi.ok) {
+                    var body = await resApi.json().catch(()=>({}));
+                    throw new Error(body.message || 'Unknown API error');
+                }
+
+                if (text) {
+                    await interaction.editReply({ content: '✅ Bot "About Me" updated to:\n> ' + text });
+                } else {
+                    await interaction.editReply({ content: '✅ Bot "About Me" cleared' });
+                }
+            } catch(err) {
+                await interaction.editReply({ content: '❌ Failed to change bot bio: ' + err.message });
             }
         }
     }
