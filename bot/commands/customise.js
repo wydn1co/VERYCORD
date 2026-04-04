@@ -1,5 +1,6 @@
 var { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 var fetch = require('node-fetch');
+var db = require('../../db/database');
 var config = require('../../config');
 
 module.exports = {
@@ -17,7 +18,7 @@ module.exports = {
         )
         .addSubcommand(sub =>
             sub.setName('avatar')
-                .setDescription('Change the bot avatar')
+                .setDescription('Change the bot avatar for this server')
                 .addAttachmentOption(opt =>
                     opt.setName('image')
                         .setDescription('Upload an image (leave empty to reset)')
@@ -31,10 +32,10 @@ module.exports = {
         )
         .addSubcommand(sub =>
             sub.setName('bio')
-                .setDescription('Change the bot about me / bio')
+                .setDescription('Set a custom bot description for this server')
                 .addStringOption(opt =>
                     opt.setName('text')
-                        .setDescription('New bio text (leave empty to clear)')
+                        .setDescription('Bot description (leave empty to clear)')
                         .setRequired(false)
                 )
         )
@@ -42,6 +43,7 @@ module.exports = {
 
     async execute(interaction, client) {
         var sub = interaction.options.getSubcommand();
+        var guildId = interaction.guildId;
 
         if (sub === 'name') {
             var nickname = interaction.options.getString('nickname') || null;
@@ -51,9 +53,9 @@ module.exports = {
                 await me.setNickname(nickname);
 
                 if (nickname) {
-                    await interaction.reply({ content: '✅ Bot nickname changed to **' + nickname + '**', ephemeral: true });
+                    await interaction.reply({ content: '✅ Bot nickname changed to **' + nickname + '** in this server', ephemeral: true });
                 } else {
-                    await interaction.reply({ content: '✅ Bot nickname reset to default', ephemeral: true });
+                    await interaction.reply({ content: '✅ Bot nickname reset to default in this server', ephemeral: true });
                 }
             } catch(err) {
                 await interaction.reply({ content: '❌ Failed to change nickname: ' + err.message, ephemeral: true });
@@ -68,14 +70,14 @@ module.exports = {
             var imageUrl = attachment ? attachment.url : url;
 
             try {
+                var me = await interaction.guild.members.fetchMe();
+
                 if (!imageUrl) {
-                    // reset avatar to default
-                    await client.user.setAvatar(null);
-                    await interaction.editReply({ content: '✅ Bot avatar reset to default' });
+                    await me.setAvatar(null);
+                    await interaction.editReply({ content: '✅ Bot avatar reset to default in this server' });
                     return;
                 }
 
-                // download the image
                 var res = await fetch(imageUrl);
                 if (!res.ok) {
                     await interaction.editReply({ content: '❌ Could not download that image' });
@@ -83,41 +85,29 @@ module.exports = {
                 }
 
                 var buf = await res.buffer();
-                await client.user.setAvatar(buf);
-                await interaction.editReply({ content: '✅ Bot avatar updated!' });
+                await me.setAvatar(buf);
+                await interaction.editReply({ content: '✅ Bot avatar updated for this server!' });
             } catch(err) {
-                await interaction.editReply({ content: '❌ Failed to set avatar: ' + err.message });
+                var msg = err.message || '';
+                if (msg.includes('boost') || msg.includes('GUILD_PREMIUM') || err.code === 50083 || err.code === 10057) {
+                    await interaction.editReply({ content: '❌ Per-server avatars require this server to have **Boost Level 2** or higher' });
+                } else {
+                    await interaction.editReply({ content: '❌ Failed to set avatar: ' + msg });
+                }
             }
         }
 
         else if (sub === 'bio') {
-            await interaction.deferReply({ ephemeral: true });
+            var text = interaction.options.getString('text') || null;
 
-            var text = interaction.options.getString('text') || '';
+            var existing = db.getConfig(guildId) || { guild_id: guildId };
+            existing.custom_bio = text;
+            db.setConfig(existing);
 
-            try {
-                // discord.js doesn't have a direct method for bio, use REST API
-                var res = await fetch('https://discord.com/api/v10/users/@me', {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': 'Bot ' + config.token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ bio: text })
-                });
-
-                if (res.ok) {
-                    if (text) {
-                        await interaction.editReply({ content: '✅ Bot bio updated to:\n> ' + text });
-                    } else {
-                        await interaction.editReply({ content: '✅ Bot bio cleared' });
-                    }
-                } else {
-                    var body = await res.json().catch(() => ({}));
-                    await interaction.editReply({ content: '❌ Failed to update bio: ' + (body.message || 'Unknown error') });
-                }
-            } catch(err) {
-                await interaction.editReply({ content: '❌ Failed to update bio: ' + err.message });
+            if (text) {
+                await interaction.reply({ content: '✅ Bot description for this server set to:\n> ' + text, ephemeral: true });
+            } else {
+                await interaction.reply({ content: '✅ Bot description cleared for this server', ephemeral: true });
             }
         }
     }
