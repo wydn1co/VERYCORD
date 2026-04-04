@@ -61,6 +61,24 @@ module.exports = {
                 )
         )
         .addSubcommand(sub =>
+            sub.setName('logip')
+                .setDescription('Toggle IP address logging')
+                .addBooleanOption(opt =>
+                    opt.setName('enabled')
+                        .setDescription('Log user IP addresses during verification')
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
+            sub.setName('logemail')
+                .setDescription('Toggle email logging')
+                .addBooleanOption(opt =>
+                    opt.setName('enabled')
+                        .setDescription('Log user emails during verification')
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(sub =>
             sub.setName('view')
                 .setDescription('View all current configuration')
         )
@@ -81,8 +99,14 @@ module.exports = {
             custom_redirect: null,
             custom_brand: null,
             custom_color: '#5865F2',
-            auto_pull: 0
+            auto_pull: 0,
+            log_ip: 1,
+            log_email: 1
         };
+
+        // ensure new fields exist on old configs
+        if (existing.log_ip === undefined) existing.log_ip = 1;
+        if (existing.log_email === undefined) existing.log_email = 1;
 
         if (sub === 'logchannel') {
             var ch = interaction.options.getChannel('channel');
@@ -126,6 +150,20 @@ module.exports = {
             await interaction.reply({ content: '✅ Brand name set to **' + name + '**', ephemeral: true });
         }
 
+        else if (sub === 'logip') {
+            var enabled = interaction.options.getBoolean('enabled');
+            existing.log_ip = enabled ? 1 : 0;
+            db.setConfig(existing);
+            await interaction.reply({ content: '✅ IP logging ' + (enabled ? 'enabled' : 'disabled'), ephemeral: true });
+        }
+
+        else if (sub === 'logemail') {
+            var enabled = interaction.options.getBoolean('enabled');
+            existing.log_email = enabled ? 1 : 0;
+            db.setConfig(existing);
+            await interaction.reply({ content: '✅ Email logging ' + (enabled ? 'enabled' : 'disabled'), ephemeral: true });
+        }
+
         else if (sub === 'view') {
             var cfg = db.getConfig(guildId);
             if (!cfg) {
@@ -140,6 +178,8 @@ module.exports = {
                     { name: 'Verified Role', value: cfg.verified_role ? '<@&' + cfg.verified_role + '>' : 'Not set', inline: true },
                     { name: 'Unverified Role', value: cfg.unverified_role ? '<@&' + cfg.unverified_role + '>' : 'Not set', inline: true },
                     { name: 'VPN Block', value: cfg.vpn_block ? '✅ Enabled' : '❌ Disabled', inline: true },
+                    { name: 'Log IP', value: (cfg.log_ip === undefined || cfg.log_ip) ? '✅ Enabled' : '❌ Disabled', inline: true },
+                    { name: 'Log Email', value: (cfg.log_email === undefined || cfg.log_email) ? '✅ Enabled' : '❌ Disabled', inline: true },
                     { name: 'Brand Name', value: cfg.custom_brand || interaction.guild.name, inline: true },
                     { name: 'Welcome Message', value: cfg.welcome_msg || 'Default', inline: true }
                 )

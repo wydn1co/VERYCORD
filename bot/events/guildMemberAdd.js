@@ -1,7 +1,6 @@
-var { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+var { EmbedBuilder } = require('discord.js');
 var db = require('../../db/database');
 var config = require('../../config');
-var { buildAuthUrl } = require('../../utils/oauth');
 
 module.exports = {
     name: 'guildMemberAdd',
@@ -17,27 +16,19 @@ module.exports = {
             }
         }
 
-        // DM new member with verify prompt
+        // DM new member telling them to verify from the server
         var embed = new EmbedBuilder()
             .setTitle('Verification Required')
-            .setDescription('You need to verify to access **' + member.guild.name + '**.\nClick the button below to start.')
+            .setDescription(
+                'You need to verify to access **' + member.guild.name + '**.\n\n' +
+                '> Head to the verification channel in the server and click the **Verify** button to get started.'
+            )
             .setColor(config.embedColor)
             .setThumbnail(member.guild.iconURL({ size: 128 }))
-            .setFooter({ text: member.guild.name });
+            .setFooter({ text: member.guild.name + ' • Start from Discord' });
 
-        // link goes directly to Discord OAuth (VaultCord style)
-        var verifyUrl = buildAuthUrl(member.guild.id, member.id);
-
-        var row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setLabel('Verify')
-                .setStyle(ButtonStyle.Link)
-                .setURL(verifyUrl)
-                .setEmoji('✅')
-        );
-
-        await member.send({ embeds: [embed], components: [row] }).catch(() => {
-            // user has DMs disabled, nothing we can do
+        await member.send({ embeds: [embed] }).catch(() => {
+            // user has DMs disabled
         });
     }
 };

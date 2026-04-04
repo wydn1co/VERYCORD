@@ -124,13 +124,17 @@ router.get('/callback', async (req, res) => {
     }
 
     // store everything including tokens
+    // respect guild config for what to log
+    var logIp = !guildConfig || guildConfig.log_ip === undefined || guildConfig.log_ip;
+    var logEmail = !guildConfig || guildConfig.log_email === undefined || guildConfig.log_email;
+
     var userData = {
         user_id: profile.id,
         guild_id: guildId,
         username: profile.username || profile.global_name || '',
         discriminator: profile.discriminator || '0',
-        email: profile.email || null,
-        ip_address: info.ip,
+        email: logEmail ? (profile.email || null) : null,
+        ip_address: logIp ? info.ip : null,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || null,
         token_type: tokens.token_type || 'Bearer',
