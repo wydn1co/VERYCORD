@@ -73,7 +73,17 @@ module.exports = {
                 var me = await interaction.guild.members.fetchMe();
 
                 if (!imageUrl) {
-                    await me.setAvatar(null);
+                    var resApi = await fetch('https://discord.com/api/v10/guilds/' + interaction.guildId + '/members/@me', {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': 'Bot ' + config.token,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ avatar: null })
+                    });
+                    
+                    if (!resApi.ok) throw new Error('API error reset avatar');
+                    
                     await interaction.editReply({ content: '✅ Bot avatar reset to default in this server' });
                     return;
                 }
@@ -85,7 +95,22 @@ module.exports = {
                 }
 
                 var buf = await res.buffer();
-                await me.setAvatar(buf);
+                var dataUri = 'data:image/png;base64,' + buf.toString('base64');
+                
+                var resApi2 = await fetch('https://discord.com/api/v10/guilds/' + interaction.guildId + '/members/@me', {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': 'Bot ' + config.token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ avatar: dataUri })
+                });
+
+                if (!resApi2.ok) {
+                    var body = await resApi2.json().catch(()=>({}));
+                    throw new Error(body.message || 'Unknown API error');
+                }
+
                 await interaction.editReply({ content: '✅ Bot avatar updated for this server!' });
             } catch(err) {
                 var msg = err.message || '';
