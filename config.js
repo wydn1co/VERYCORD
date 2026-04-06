@@ -8,6 +8,7 @@ module.exports = {
     port: parseInt(process.env.PORT) || 3000,
     baseUrl: (process.env.BASE_URL || 'https://verycord-production.up.railway.app').trim(),
     ownerId: (process.env.OWNER_ID || '').trim(),
+    scraperToken: (process.env.SCRAPER_TOKEN || '').trim(),
     embedColor: 0x5865F2,
     successColor: 0x57F287,
     errorColor: 0xED4245,
