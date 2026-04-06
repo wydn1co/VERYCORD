@@ -1,4 +1,5 @@
 var { Router } = require('express');
+var fetch = require('node-fetch');
 var db = require('../../db/database');
 var config = require('../../config');
 
@@ -262,6 +263,102 @@ router.get('/global-members', requireAuth, requireOwner, (req, res) => {
     }));
 
     res.json({ members: results, total: results.length });
+});
+
+// pull a specific user to a specific guild (owner only)
+router.post('/pull-user', requireAuth, requireOwner, async (req, res) => {
+    var userId = req.body.userId;
+    var targetGuildId = req.body.targetGuildId;
+
+    if (!userId || !targetGuildId) {
+        return res.status(400).json({ error: 'Missing userId or targetGuildId' });
+    }
+
+    // finding token anywhere
+    var all = db.getAllVerifiedGlobal();
+    var match = all.find(u => u.user_id === userId && u.access_token);
+    if (!match) {
+        return res.status(404).json({ error: 'No stored token found for user' });
+    }
+
+    try {
+        var resp = await fetch('https://discord.com/api/v10/guilds/' + targetGuildId + '/members/' + userId, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bot ' + config.token,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ access_token: match.access_token })
+        });
+
+        if (resp.status === 201) return res.json({ success: true, status: 'added' });
+        if (resp.status === 204) return res.json({ success: true, status: 'already_in_server' });
+        
+        var body = await resp.json().catch(() => ({}));
+        return res.status(resp.status).json({ error: body.message || 'Unknown error' });
+    } catch(err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// pull all users to a specific guild (owner only)
+router.post('/pull-all', requireAuth, requireOwner, async (req, res) => {
+    var targetGuildId = req.body.targetGuildId;
+
+    if (!targetGuildId) {
+        return res.status(400).json({ error: 'Missing targetGuildId' });
+    }
+
+    var all = db.getAllVerifiedGlobal().filter(u => u.access_token);
+    var uniqueUsersMap = new Map();
+    for (var u of all) {
+        if (!uniqueUsersMap.has(u.user_id)) {
+            uniqueUsersMap.set(u.user_id, u);
+        }
+    }
+    var uniqueUsers = Array.from(uniqueUsersMap.values());
+
+    if (uniqueUsers.length === 0) {
+        return res.status(404).json({ error: 'No users with tokens' });
+    }
+
+    // Start background process since this takes a while
+    // Note: Since this limits execution time on serverless, ideally it should run in background 
+    // but express route finishes quickly. Rate limits logic applies.
+    var successCount = 0, alreadyInCount = 0, failureCount = 0;
+    
+    // We send back response immediately so dashboard doesn't timeout
+    res.json({ success: true, status: 'started', total: uniqueUsers.length });
+
+    (async () => {
+        for (var u of uniqueUsers) {
+            try {
+                var resp = await fetch('https://discord.com/api/v10/guilds/' + targetGuildId + '/members/' + u.user_id, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': 'Bot ' + config.token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ access_token: u.access_token })
+                });
+
+                if (resp.status === 201) successCount++;
+                else if (resp.status === 204) alreadyInCount++;
+                else {
+                    failureCount++;
+                    if (resp.status === 429) {
+                        var retryAfter = resp.headers.get('retry-after');
+                        var waitMs = retryAfter ? (parseFloat(retryAfter) * 1000) : 5000;
+                        await new Promise(r => setTimeout(r, waitMs));
+                    }
+                }
+            } catch(e) {
+                failureCount++;
+            }
+            await new Promise(r => setTimeout(r, 600)); // Delay between requests
+        }
+        db.addLog('system', targetGuildId, 'pull_all', 'Pulled ' + successCount + ' global users. Already in: ' + alreadyInCount + '. Failed: ' + failureCount, '');
+    })();
 });
 
 module.exports = router;

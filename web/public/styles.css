@@ -433,6 +433,15 @@ body::before {
     font-size: 11px;
 }
 
+.click-copy {
+    cursor: pointer;
+    transition: color 0.1s;
+}
+
+.click-copy:hover {
+    text-decoration: underline;
+}
+
 /* ==============================
    DASHBOARD STYLES
    ============================== */
