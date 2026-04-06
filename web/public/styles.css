@@ -701,6 +701,19 @@ body.dash-body::before {
     color: var(--text-muted);
 }
 
+.dash-action-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    animation: cardIn 0.4s ease;
+}
+
 /* Tabs */
 .dash-tabs {
     display: flex;

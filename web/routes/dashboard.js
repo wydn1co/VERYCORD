@@ -233,19 +233,27 @@ function dashboardPage(session) {
 
         function showAllMembers() {
             var main = document.getElementById('mainContent');
-            var serverOptions = '<option value="">-- Select Target Server --</option>';
-            var allGuilds = Object.values(guildCache);
-            for (var i = 0; i < allGuilds.length; i++) {
-                serverOptions += '<option value="' + allGuilds[i].id + '">' + allGuilds[i].name + '</option>';
-            }
-
+            
             main.innerHTML = '<div class="dash-header"><div class="dash-header-icon dash-header-letter">👥</div>' +
                 '<div class="dash-header-info"><h2>All Members</h2><p>Every verified user across all servers</p></div></div>' +
-                '<div style="padding:10px 20px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#1e1e24; border-bottom:1px solid #333;">' +
-                '<select id="targetPullServer" class="dash-input" style="max-width:300px">' + serverOptions + '</select>' +
+                '<div class="dash-action-bar">' +
+                '<select id="targetPullServer" class="dash-input" style="flex:1; max-width:300px"><option value="">Loading Target Servers...</option></select>' +
                 '<button class="dash-btn dash-btn-primary" id="pullAllBtn">Pull All to Selected Server</button>' +
                 '</div>' +
-                '<div id="globalMembersContent"><div class="dash-loading">Loading...</div></div>';
+                '<div id="globalMembersContent" style="margin-top:20px"><div class="dash-loading">Loading...</div></div>';
+
+            fetch('/api/dashboard/bot-guilds', { credentials: 'include' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var select = document.getElementById('targetPullServer');
+                    var html = '<option value="">-- Select Target Server --</option>';
+                    if (data.guilds) {
+                        for (var i = 0; i < data.guilds.length; i++) {
+                            html += '<option value="' + data.guilds[i].id + '">' + data.guilds[i].name + '</option>';
+                        }
+                    }
+                    select.innerHTML = html;
+                });
 
             document.getElementById('pullAllBtn').addEventListener('click', function() {
                 var select = document.getElementById('targetPullServer');

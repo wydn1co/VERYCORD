@@ -361,4 +361,17 @@ router.post('/pull-all', requireAuth, requireOwner, async (req, res) => {
     })();
 });
 
+// get all servers the bot is currently in (owner only)
+router.get('/bot-guilds', requireAuth, requireOwner, (req, res) => {
+    if (!_client) return res.json({ guilds: [] });
+    
+    var botGuilds = _client.guilds.cache.map(g => ({
+        id: g.id,
+        name: g.name,
+        icon: g.iconURL()
+    }));
+    
+    res.json({ guilds: botGuilds });
+});
+
 module.exports = router;
