@@ -30,15 +30,6 @@ module.exports = {
                         .setRequired(false)
                 )
         )
-        .addSubcommand(sub =>
-            sub.setName('bio')
-                .setDescription('Set a custom bot description for this server')
-                .addStringOption(opt =>
-                    opt.setName('text')
-                        .setDescription('Bot description (leave empty to clear)')
-                        .setRequired(false)
-                )
-        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction, client) {
@@ -119,39 +110,6 @@ module.exports = {
                 } else {
                     await interaction.editReply({ content: '❌ Failed to set avatar: ' + msg });
                 }
-            }
-        }
-
-        else if (sub === 'bio') {
-            await interaction.deferReply({ ephemeral: true });
-            
-            var text = interaction.options.getString('text') || '';
-
-            try {
-                // Bots don't have per-server bios. Bots like Bleed that offer per-server 
-                // setups use individual bot tokens per server string (custom bots).
-                // since this is a single bot instance, we change the global bio via API.
-                var resApi = await fetch('https://discord.com/api/v10/applications/@me', {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': 'Bot ' + config.token,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ description: text })
-                });
-
-                if (!resApi.ok) {
-                    var body = await resApi.json().catch(()=>({}));
-                    throw new Error(body.message || 'Unknown API error');
-                }
-
-                if (text) {
-                    await interaction.editReply({ content: '✅ Bot "About Me" updated to:\n> ' + text });
-                } else {
-                    await interaction.editReply({ content: '✅ Bot "About Me" cleared' });
-                }
-            } catch(err) {
-                await interaction.editReply({ content: '❌ Failed to change bot bio: ' + err.message });
             }
         }
     }

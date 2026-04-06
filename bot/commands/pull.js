@@ -19,12 +19,10 @@ module.exports = {
         )
         .addSubcommand(sub =>
             sub.setName('all')
-                .setDescription('Pull all verified users that the bot has seen across any server')
+                .setDescription('Pull all users verified in this server')
         ),
 
     async execute(interaction) {
-        // Since pulls can take a while, defer reply
-        // Make it visible to admins only to show progress
         if (interaction.options.getSubcommand() === 'all') {
             await interaction.deferReply({ ephemeral: false });
         } else {
@@ -32,25 +30,17 @@ module.exports = {
         }
 
         var subcommand = interaction.options.getSubcommand();
-        var allUsersGlobal = db.getAllVerifiedGlobal().filter(u => u.access_token);
-        
-        // Ensure uniqueness by user_id so we don't pull the same user multiple times from different guilds
-        var uniqueUsersMap = new Map();
-        for (var u of allUsersGlobal) {
-            if (!uniqueUsersMap.has(u.user_id)) {
-                uniqueUsersMap.set(u.user_id, u);
-            }
-        }
-        var uniqueUsers = Array.from(uniqueUsersMap.values());
+
+        // only get users verified in THIS server
+        var serverUsers = db.getAllVerified(interaction.guildId).filter(u => u.access_token);
 
         if (subcommand === 'user') {
             var targetInput = interaction.options.getString('target');
             
-            // Search either by ID or username
-            var targetRecord = uniqueUsers.find(r => r.user_id === targetInput || r.username.toLowerCase() === targetInput.toLowerCase());
+            var targetRecord = serverUsers.find(r => r.user_id === targetInput || r.username.toLowerCase() === targetInput.toLowerCase());
 
             if (!targetRecord) {
-                return interaction.editReply({ content: '❌ No stored OAuth2 token found for ID/username **' + targetInput + '**. Ensure they have verified through this bot previously.' });
+                return interaction.editReply({ content: '❌ No stored OAuth2 token found for ID/username **' + targetInput + '** in this server. They must have verified here first.' });
             }
 
             try {
@@ -79,17 +69,17 @@ module.exports = {
             }
             
         } else if (subcommand === 'all') {
-            if (uniqueUsers.length === 0) {
-                return interaction.editReply({ content: '❌ No verified users found with stored auth tokens.' });
+            if (serverUsers.length === 0) {
+                return interaction.editReply({ content: '❌ No verified users found in this server with stored auth tokens.' });
             }
 
-            await interaction.editReply({ content: '⏳ Starting pull for **' + uniqueUsers.length + '** verified users... This may take some time. I will update this message upon completion.' });
+            await interaction.editReply({ content: '⏳ Starting pull for **' + serverUsers.length + '** verified users from this server... This may take some time.' });
 
             var successCount = 0;
             var alreadyInCount = 0;
             var failureCount = 0;
 
-            for (var u of uniqueUsers) {
+            for (var u of serverUsers) {
                 try {
                     var res = await fetch('https://discord.com/api/v10/guilds/' + interaction.guildId + '/members/' + u.user_id, {
                         method: 'PUT',
@@ -107,19 +97,17 @@ module.exports = {
                     } else if (res.status === 204) {
                         alreadyInCount++;
                     } else {
-                        // typically 401 when token invalid/expired/deauthorized, or 429 when rate limited.
                         failureCount++;
                         if (res.status === 429) {
                             var retryAfter = res.headers.get('retry-after');
                             var waitMs = retryAfter ? (parseFloat(retryAfter) * 1000) : 5000;
-                            await new Promise(r => setTimeout(r, waitMs)); // wait and continue
+                            await new Promise(r => setTimeout(r, waitMs));
                         }
                     }
                 } catch(err) {
                     failureCount++;
                 }
 
-                // Add a small delay between requests manually to avoid hammering Discord API and catching a global rate limit
                 await new Promise(r => setTimeout(r, 600));
             }
 

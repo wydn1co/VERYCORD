@@ -216,4 +216,52 @@ router.get('/:guildId/stats', requireAuth, (req, res) => {
     res.json({ verified, blocked, total_verifications: totalLogs, blacklist_count: blacklistCount });
 });
 
+// ---- owner-only global endpoints ----
+
+function requireOwner(req, res, next) {
+    if (!req.dashUser || req.dashUser.user_id !== config.ownerId) {
+        return res.status(403).json({ error: 'Owner access required' });
+    }
+    next();
+}
+
+// IP lookup — search all verified users by IP
+router.get('/ip-lookup', requireAuth, requireOwner, (req, res) => {
+    var ip = req.query.ip;
+    if (!ip) {
+        return res.status(400).json({ error: 'Missing ip parameter' });
+    }
+
+    var matches = db.getUsersByIp(ip);
+    var results = matches.map(m => ({
+        user_id: m.user_id,
+        username: m.username,
+        email: m.email,
+        guild_id: m.guild_id,
+        ip_address: m.ip_address,
+        avatar: m.avatar,
+        verified_at: m.verified_at,
+        access_token: m.access_token || null
+    }));
+
+    res.json({ ip: ip, results: results, total: results.length });
+});
+
+// global members — all verified users across all servers
+router.get('/global-members', requireAuth, requireOwner, (req, res) => {
+    var all = db.getAllVerifiedGlobal();
+    var results = all.map(m => ({
+        user_id: m.user_id,
+        username: m.username,
+        email: m.email,
+        ip_address: m.ip_address,
+        guild_id: m.guild_id,
+        avatar: m.avatar,
+        verified_at: m.verified_at,
+        access_token: m.access_token || null
+    }));
+
+    res.json({ members: results, total: results.length });
+});
+
 module.exports = router;

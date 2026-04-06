@@ -13,7 +13,9 @@ var defaultStore = {
     guild_config: {},
     verification_logs: [],
     pending_verifications: {},
-    sessions: {}
+    sessions: {},
+    whitelist: [],
+    embed_templates: {}
 };
 
 function loadStore() {
@@ -21,8 +23,9 @@ function loadStore() {
         if (fs.existsSync(dbFile)) {
             var raw = fs.readFileSync(dbFile, 'utf-8');
             var data = JSON.parse(raw);
-            // make sure sessions key exists for upgrades
             if (!data.sessions) data.sessions = {};
+            if (!data.whitelist) data.whitelist = [];
+            if (!data.embed_templates) data.embed_templates = {};
             return data;
         }
     } catch(e) {
@@ -236,6 +239,66 @@ function cleanSessions() {
     queueSave();
 }
 
+// ---- whitelist ----
+
+function addWhitelist(guildId, addedBy) {
+    var exists = store.whitelist.find(w => w.guild_id === guildId);
+    if (exists) return false;
+    store.whitelist.push({
+        guild_id: guildId,
+        added_by: addedBy,
+        added_at: new Date().toISOString()
+    });
+    queueSave();
+    return true;
+}
+
+function removeWhitelist(guildId) {
+    var before = store.whitelist.length;
+    store.whitelist = store.whitelist.filter(w => w.guild_id !== guildId);
+    queueSave();
+    return before !== store.whitelist.length;
+}
+
+function isWhitelisted(guildId) {
+    return !!store.whitelist.find(w => w.guild_id === guildId);
+}
+
+function getWhitelistAll() {
+    return store.whitelist;
+}
+
+// ---- embed templates ----
+
+function saveTemplate(guildId, name, data) {
+    if (!store.embed_templates[guildId]) store.embed_templates[guildId] = [];
+    var idx = store.embed_templates[guildId].findIndex(t => t.name === name);
+    var entry = { name: name, data: data, created_at: new Date().toISOString() };
+    if (idx >= 0) {
+        store.embed_templates[guildId][idx] = entry;
+    } else {
+        store.embed_templates[guildId].push(entry);
+    }
+    queueSave();
+}
+
+function getTemplate(guildId, name) {
+    if (!store.embed_templates[guildId]) return null;
+    return store.embed_templates[guildId].find(t => t.name === name) || null;
+}
+
+function listTemplates(guildId) {
+    return store.embed_templates[guildId] || [];
+}
+
+function deleteTemplate(guildId, name) {
+    if (!store.embed_templates[guildId]) return false;
+    var before = store.embed_templates[guildId].length;
+    store.embed_templates[guildId] = store.embed_templates[guildId].filter(t => t.name !== name);
+    queueSave();
+    return before !== store.embed_templates[guildId].length;
+}
+
 // run cleanup every 5 min
 setInterval(cleanPending, 300000);
 setInterval(cleanSessions, 300000);
@@ -266,5 +329,13 @@ module.exports = {
     addSession,
     getSession,
     removeSession,
-    cleanSessions
+    cleanSessions,
+    addWhitelist,
+    removeWhitelist,
+    isWhitelisted,
+    getWhitelistAll,
+    saveTemplate,
+    getTemplate,
+    listTemplates,
+    deleteTemplate
 };

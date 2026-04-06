@@ -18,6 +18,12 @@ router.get('/verify', (req, res) => {
         return res.redirect('/?error=no_guild');
     }
 
+    // check whitelist
+    var whitelist = db.getWhitelistAll ? db.getWhitelistAll() : [];
+    if (whitelist.length > 0 && !db.isWhitelisted(guildId)) {
+        return res.redirect('/blocked.html?reason=not_whitelisted');
+    }
+
     var { buildAuthUrl } = require('../../utils/oauth');
     var authUrl = buildAuthUrl(guildId, null);
     res.redirect(authUrl);
