@@ -67,13 +67,18 @@ module.exports = {
                                 .setRequired(false)
                         )
                         .addStringOption(opt =>
+                            opt.setName('title')
+                                .setDescription('Default embed title')
+                                .setRequired(false)
+                        )
+                        .addStringOption(opt =>
                             opt.setName('footer')
                                 .setDescription('Default footer text')
                                 .setRequired(false)
                         )
                         .addStringOption(opt =>
-                            opt.setName('thumbnail')
-                                .setDescription('Default thumbnail URL')
+                            opt.setName('image')
+                                .setDescription('Default image URL')
                                 .setRequired(false)
                         )
                 )
@@ -111,8 +116,9 @@ module.exports = {
             if (sub === 'save') {
                 var name = interaction.options.getString('name').toLowerCase().trim();
                 var color = interaction.options.getString('color') || '#5865F2';
+                var title = interaction.options.getString('title') || '';
                 var footer = interaction.options.getString('footer') || '';
-                var thumbnail = interaction.options.getString('thumbnail') || '';
+                var image = interaction.options.getString('image') || '';
 
                 // validate color
                 var cleanColor = color.replace('#', '');
@@ -122,17 +128,18 @@ module.exports = {
 
                 db.saveTemplate(guildId, name, {
                     color: '#' + cleanColor,
+                    title: title,
                     footer: footer,
-                    thumbnail: thumbnail
+                    image: image
                 });
 
                 var preview = new EmbedBuilder()
-                    .setTitle('Template Preview')
+                    .setTitle(title || 'Template Preview')
                     .setDescription('This is what your template defaults look like.')
                     .setColor(parseInt(cleanColor, 16));
 
                 if (footer) preview.setFooter({ text: footer });
-                if (thumbnail) preview.setThumbnail(thumbnail);
+                if (image) preview.setImage(image);
 
                 await interaction.reply({
                     content: '✅ Template **' + name + '** saved!',
@@ -184,12 +191,12 @@ module.exports = {
 
                 var d = template.data;
                 var embed = new EmbedBuilder()
-                    .setTitle('Template: ' + name)
+                    .setTitle(d.title || 'Template: ' + name)
                     .setDescription('This is a preview of the **' + name + '** template.\nUse `/embed create template:' + name + '` to use it.')
                     .setColor(parseInt((d.color || '#5865F2').replace('#', ''), 16));
 
                 if (d.footer) embed.setFooter({ text: d.footer });
-                if (d.thumbnail) embed.setThumbnail(d.thumbnail);
+                if (d.image) embed.setImage(d.image);
 
                 await interaction.reply({ embeds: [embed], ephemeral: true });
             }
@@ -200,14 +207,15 @@ module.exports = {
         // /embed create — opens a modal
         if (sub === 'create') {
             var templateName = interaction.options.getString('template');
-            var defaults = { color: '5865F2', footer: '', thumbnail: '' };
+            var defaults = { title: '', color: '5865F2', footer: '', image: '' };
 
             if (templateName) {
                 var template = db.getTemplate(guildId, templateName.toLowerCase().trim());
                 if (template) {
+                    defaults.title = template.data.title || '';
                     defaults.color = (template.data.color || '#5865F2').replace('#', '');
                     defaults.footer = template.data.footer || '';
-                    defaults.thumbnail = template.data.thumbnail || '';
+                    defaults.image = template.data.image || '';
                 }
             }
 
@@ -221,7 +229,8 @@ module.exports = {
                 .setStyle(TextInputStyle.Short)
                 .setPlaceholder('Enter embed title')
                 .setRequired(true)
-                .setMaxLength(256);
+                .setMaxLength(256)
+                .setValue(defaults.title);
 
             var descInput = new TextInputBuilder()
                 .setCustomId('embed_description')
@@ -254,7 +263,8 @@ module.exports = {
                 .setLabel('Image URL')
                 .setStyle(TextInputStyle.Short)
                 .setPlaceholder('https://example.com/image.png (optional)')
-                .setRequired(false);
+                .setRequired(false)
+                .setValue(defaults.image);
 
             modal.addComponents(
                 new ActionRowBuilder().addComponents(titleInput),
@@ -267,29 +277,5 @@ module.exports = {
             await interaction.showModal(modal);
         }
 
-        // /embed quick — inline creation
-        else if (sub === 'quick') {
-            var title = interaction.options.getString('title');
-            var description = interaction.options.getString('description');
-            var color = interaction.options.getString('color') || '#5865F2';
-            var footer = interaction.options.getString('footer');
-            var image = interaction.options.getString('image');
-            var thumbnail = interaction.options.getString('thumbnail');
-
-            var cleanColor = color.replace('#', '');
-            if (!/^[0-9a-fA-F]{6}$/.test(cleanColor)) cleanColor = '5865F2';
-
-            var embed = new EmbedBuilder()
-                .setTitle(title)
-                .setDescription(description)
-                .setColor(parseInt(cleanColor, 16));
-
-            if (footer) embed.setFooter({ text: footer });
-            if (image) embed.setImage(image);
-            if (thumbnail) embed.setThumbnail(thumbnail);
-
-            await interaction.channel.send({ embeds: [embed] });
-            await interaction.reply({ content: '✅ Embed sent!', ephemeral: true });
-        }
     }
 };
